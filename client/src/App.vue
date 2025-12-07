@@ -1,3 +1,54 @@
+<template>
+  <div id="app">
+    <nav v-if="authStore.isLoggedIn" class="navbar">
+      <div class="navbar-brand">
+        <h1>MES Система</h1>
+      </div>
+      <div class="navbar-menu">
+        <router-link 
+          v-if="hasPermission('dashboard.view')"
+          to="/" 
+          class="nav-link"
+        >
+          Дашборд
+        </router-link>
+        <router-link 
+          v-if="hasPermission('personnel.view')" 
+          to="/personnel" 
+          class="nav-link"
+        >
+          Персонал
+        </router-link>
+        <router-link 
+          v-if="hasPermission('warehouse.view')"
+          to="/materials" 
+          class="nav-link"
+        >
+          Склад
+        </router-link>
+        <router-link 
+          v-if="hasPermission('roles.view')"
+          to="/roles" 
+          class="nav-link"
+        >
+          Роли
+        </router-link>
+      </div>
+      <div class="navbar-user">
+        <span class="user-info">
+          {{ authStore.user?.name || 'Пользователь' }}
+          <span class="user-role">{{ getRoleText(authStore.user?.role.displayName) }}</span>
+        </span>
+        <button @click="handleLogout" class="btn-logout">Выйти</button>
+      </div>
+    </nav>
+    
+    <main class="main-content">
+      <router-view />
+    </main>
+  </div>
+</template>
+
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -14,30 +65,21 @@ const handleLogout = () => {
   authStore.logout();
   router.push('/login');
 };
-</script>
 
-<template>
-  <div id="app">
-    <nav v-if="authStore.isLoggedIn" class="navbar">
-      <div class="navbar-brand">
-        <h1>MES Система</h1>
-      </div>
-      <div class="navbar-menu">
-        <router-link to="/" class="nav-link">Задачи</router-link>
-        <router-link to="/personnel" class="nav-link">Персонал</router-link>
-        <router-link to="/materials" class="nav-link">Материалы</router-link>
-      </div>
-      <div class="navbar-user">
-        <span>{{ authStore.user?.name || 'Пользователь' }}</span>
-        <button @click="handleLogout" class="btn-logout">Выйти</button>
-      </div>
-    </nav>
-    
-    <main class="main-content">
-      <router-view />
-    </main>
-  </div>
-</template>
+const getRoleText = (role) => {
+  const roles = {
+    admin: 'Администратор',
+    supervisor: 'Руководитель цеха',
+    logistician: 'Логист'
+  };
+  return roles[role] || role;
+};
+
+const hasPermission = (permission) => {
+  const userPermissions = authStore.user?.permissions || [];
+  return userPermissions.includes(permission);
+};
+</script>
 
 <style>
 * {
@@ -97,6 +139,18 @@ body {
 .navbar-user span {
   color: #666;
   font-weight: 500;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #999;
+  font-weight: 400;
 }
 
 .btn-logout {

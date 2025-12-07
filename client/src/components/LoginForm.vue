@@ -1,34 +1,3 @@
-<script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/authStore';
-
-const router = useRouter();
-const authStore = useAuthStore();
-
-const credentials = ref({
-  email: '',
-  password: ''
-});
-
-const loading = ref(false);
-const error = ref(null);
-
-const handleLogin = async () => {
-  loading.value = true;
-  error.value = null;
-  
-  try {
-    await authStore.login(credentials.value);
-    router.push('/');
-  } catch (err) {
-    error.value = err.error || 'Ошибка авторизации';
-  } finally {
-    loading.value = false;
-  }
-};
-</script>
-
 <template>
   <div class="login-container">
     <div class="login-card">
@@ -64,14 +33,40 @@ const handleLogin = async () => {
           {{ loading ? 'Вход...' : 'Войти' }}
         </button>
       </form>
-
-      <div class="register-link">
-        Нет аккаунта? 
-        <router-link to="/register">Зарегистрироваться</router-link>
-      </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/authStore';
+
+const router = useRouter();
+const authStore = useAuthStore();
+
+const credentials = ref({
+  email: '',
+  password: ''
+});
+
+const loading = ref(false);
+const error = ref(null);
+
+const handleLogin = async () => {
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    await authStore.login(credentials.value);
+    router.push('/');
+  } catch (err) {
+    error.value = err.error || 'Ошибка авторизации';
+  } finally {
+    loading.value = false;
+  }
+};
+</script>
 
 <style scoped>
 .login-container {
@@ -149,22 +144,5 @@ input:focus {
   border-radius: 4px;
   margin-bottom: 20px;
   font-size: 14px;
-}
-
-.register-link {
-  text-align: center;
-  margin-top: 20px;
-  color: #666;
-  font-size: 14px;
-}
-
-.register-link a {
-  color: #4CAF50;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.register-link a:hover {
-  text-decoration: underline;
 }
 </style>

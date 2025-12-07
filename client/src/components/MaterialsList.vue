@@ -1,8 +1,111 @@
+<template>
+  <div class="materials-container">
+    <div class="header">
+      <h2>Склад - Управление материалами</h2>
+      <button 
+        v-if="canEdit"
+        @click="showAddModal = true" 
+        class="btn-add"
+      >
+        + Добавить материал
+      </button>
+    </div>
+
+    <div v-if="materialsStore.loading" class="loading">
+      Загрузка...
+    </div>
+
+    <div v-else-if="materialsStore.error" class="error">
+      {{ materialsStore.error }}
+    </div>
+
+    <div v-else class="materials-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Название</th>
+            <th>Количество</th>
+            <th>Единица измерения</th>
+            <th>Цена</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="material in materialsStore.allMaterials" :key="material.id">
+            <td>{{ material.name }}</td>
+            <td>{{ material.quantity }}</td>
+            <td>{{ material.unit }}</td>
+            <td>{{ material.price }} ₽</td>
+            <td>
+              <button 
+                v-if="canEdit"
+                @click="editMaterial(material)" 
+                class="btn-edit-small"
+              >
+                ✏️
+              </button>
+              <button 
+                v-if="canEdit"
+                @click="deleteMaterial(material.id)" 
+                class="btn-delete-small"
+              >
+                🗑️
+              </button>
+              <span v-if="!canEdit" class="no-access">Только просмотр</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Модальное окно -->
+    <div v-if="showAddModal || editingMaterial" class="modal" @click.self="closeModal">
+      <div class="modal-content">
+        <h3>{{ editingMaterial ? 'Редактировать' : 'Добавить' }} материал</h3>
+        <form @submit.prevent="handleSubmit">
+          <div class="form-group">
+            <label>Название</label>
+            <input v-model="formData.name" required />
+          </div>
+          <div class="form-group">
+            <label>Количество</label>
+            <input v-model.number="formData.quantity" type="number" required />
+          </div>
+          <div class="form-group">
+            <label>Единица измерения</label>
+            <input v-model="formData.unit" required placeholder="кг, м, шт" />
+          </div>
+          <div class="form-group">
+            <label>Цена</label>
+            <input v-model.number="formData.price" type="number" step="0.01" required />
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="closeModal" class="btn-cancel">
+              Отмена
+            </button>
+            <button type="submit" class="btn-submit">
+              {{ editingMaterial ? 'Сохранить' : 'Добавить' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useMaterialsStore } from '../stores/materialsStore';
+import { useAuthStore } from '../stores/authStore';
 
 const materialsStore = useMaterialsStore();
+const authStore = useAuthStore();
+
+// Проверка прав доступа - логист может только редактировать
+const canEdit = computed(() => {
+  const userPermissions = authStore.user?.permissions || [];
+  return userPermissions.includes('warehouse.edit');
+});
 const showAddModal = ref(false);
 const editingMaterial = ref(null);
 const formData = ref({
@@ -50,88 +153,6 @@ const deleteMaterial = async (id) => {
   }
 };
 </script>
-
-<template>
-  <div class="materials-container">
-    <div class="header">
-      <h2>Материалы</h2>
-      <button @click="showAddModal = true" class="btn-add">
-        + Добавить материал
-      </button>
-    </div>
-
-    <div v-if="materialsStore.loading" class="loading">
-      Загрузка...
-    </div>
-
-    <div v-else-if="materialsStore.error" class="error">
-      {{ materialsStore.error }}
-    </div>
-
-    <div v-else class="materials-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>Количество</th>
-            <th>Единица измерения</th>
-            <th>Цена</th>
-            <th>Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="material in materialsStore.allMaterials" :key="material.id">
-            <td>{{ material.name }}</td>
-            <td>{{ material.quantity }}</td>
-            <td>{{ material.unit }}</td>
-            <td>{{ material.price }} ₽</td>
-            <td>
-              <button @click="editMaterial(material)" class="btn-edit-small">
-                ✏️
-              </button>
-              <button @click="deleteMaterial(material.id)" class="btn-delete-small">
-                🗑️
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Модальное окно -->
-    <div v-if="showAddModal || editingMaterial" class="modal" @click.self="closeModal">
-      <div class="modal-content">
-        <h3>{{ editingMaterial ? 'Редактировать' : 'Добавить' }} материал</h3>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>Название</label>
-            <input v-model="formData.name" required />
-          </div>
-          <div class="form-group">
-            <label>Количество</label>
-            <input v-model.number="formData.quantity" type="number" required />
-          </div>
-          <div class="form-group">
-            <label>Единица измерения</label>
-            <input v-model="formData.unit" required placeholder="кг, м, шт" />
-          </div>
-          <div class="form-group">
-            <label>Цена</label>
-            <input v-model.number="formData.price" type="number" step="0.01" required />
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal" class="btn-cancel">
-              Отмена
-            </button>
-            <button type="submit" class="btn-submit">
-              {{ editingMaterial ? 'Сохранить' : 'Добавить' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .materials-container {
@@ -195,6 +216,12 @@ tbody tr:hover {
 
 .btn-edit-small:hover {
   opacity: 0.7;
+}
+
+.no-access {
+  color: #999;
+  font-size: 14px;
+  font-style: italic;
 }
 
 .modal {

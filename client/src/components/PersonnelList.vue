@@ -1,8 +1,110 @@
+<template>
+  <div class="personnel-container">
+    <div class="header">
+      <h2>Персонал</h2>
+      <button 
+        v-if="canEdit"
+        @click="showAddModal = true" 
+        class="btn-add"
+      >
+        + Добавить сотрудника
+      </button>
+    </div>
+
+    <div v-if="personnelStore.loading" class="loading">
+      Загрузка...
+    </div>
+
+    <div v-else-if="personnelStore.error" class="error">
+      {{ personnelStore.error }}
+    </div>
+
+    <div v-else class="personnel-grid">
+      <div
+        v-for="person in personnelStore.allPersonnel"
+        :key="person.id"
+        class="personnel-card"
+      >
+        <h3>{{ person.name }}</h3>
+        <p><strong>Email:</strong> {{ person.email }}</p>
+        <p><strong>Роль:</strong> {{ getRoleText(person.role.displayName) }}</p>
+        <div class="actions">
+          <button 
+            v-if="canEdit"
+            @click="editPersonnel(person)" 
+            class="btn-edit"
+          >
+            Редактировать
+          </button>
+          <button 
+            v-if="canEdit"
+            @click="deletePersonnel(person.id)" 
+            class="btn-delete"
+          >
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно добавления/редактирования -->
+    <div v-if="showAddModal || editingPerson" class="modal" @click.self="closeModal">
+      <div class="modal-content">
+        <h3>{{ editingPerson ? 'Редактировать' : 'Добавить' }} сотрудника</h3>
+        <form @submit.prevent="handleSubmit">
+          <div class="form-group">
+            <label>Имя</label>
+            <input v-model="formData.name" required />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input v-model="formData.email" type="email" required />
+          </div>
+          <div class="form-group">
+            <label>Роль</label>
+            <select v-model="formData.role" required>
+              <option value="">Выберите роль</option>
+              <option 
+                v-for="role in rolesStore.allRoles" 
+                :key="role.id"
+                :value="role.name"
+              >
+                {{ role.displayName }}
+              </option>
+            </select>
+          </div>
+          <div v-if="!editingPerson" class="form-group">
+            <label>Пароль</label>
+            <input v-model="formData.password" type="password" required />
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="closeModal" class="btn-cancel">
+              Отмена
+            </button>
+            <button type="submit" class="btn-submit">
+              {{ editingPerson ? 'Сохранить' : 'Добавить' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { usePersonnelStore } from '../stores/personnelStore';
+import { useRolesStore } from '../stores/rolesStore';
+import { useAuthStore } from '../stores/authStore';
 
 const personnelStore = usePersonnelStore();
+const rolesStore = useRolesStore();
+const authStore = useAuthStore();
+
+const canEdit = computed(() => {
+  const userPermissions = authStore.user?.permissions || [];
+  return userPermissions.includes('personnel.edit');
+});
 const showAddModal = ref(false);
 const editingPerson = ref(null);
 const formData = ref({
@@ -14,6 +116,7 @@ const formData = ref({
 
 onMounted(() => {
   personnelStore.fetchPersonnel();
+  rolesStore.fetchRoles();
 });
 
 const editPersonnel = (person) => {
@@ -49,79 +152,12 @@ const deletePersonnel = async (id) => {
     }
   }
 };
+
+const getRoleText = (roleName) => {
+  const role = rolesStore.getRoleByName(roleName);
+  return role ? role.displayName : roleName;
+};
 </script>
-
-<template>
-  <div class="personnel-container">
-    <div class="header">
-      <h2>Персонал</h2>
-      <button @click="showAddModal = true" class="btn-add">
-        + Добавить сотрудника
-      </button>
-    </div>
-
-    <div v-if="personnelStore.loading" class="loading">
-      Загрузка...
-    </div>
-
-    <div v-else-if="personnelStore.error" class="error">
-      {{ personnelStore.error }}
-    </div>
-
-    <div v-else class="personnel-grid">
-      <div
-        v-for="person in personnelStore.allPersonnel"
-        :key="person.id"
-        class="personnel-card"
-      >
-        <h3>{{ person.name }}</h3>
-        <p><strong>Email:</strong> {{ person.email }}</p>
-        <p><strong>Роль:</strong> {{ person.role }}</p>
-        <div class="actions">
-          <button @click="editPersonnel(person)" class="btn-edit">
-            Редактировать
-          </button>
-          <button @click="deletePersonnel(person.id)" class="btn-delete">
-            Удалить
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Модальное окно добавления/редактирования -->
-    <div v-if="showAddModal || editingPerson" class="modal" @click.self="closeModal">
-      <div class="modal-content">
-        <h3>{{ editingPerson ? 'Редактировать' : 'Добавить' }} сотрудника</h3>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>Имя</label>
-            <input v-model="formData.name" required />
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input v-model="formData.email" type="email" required />
-          </div>
-          <div class="form-group">
-            <label>Роль</label>
-            <input v-model="formData.role" required />
-          </div>
-          <div v-if="!editingPerson" class="form-group">
-            <label>Пароль</label>
-            <input v-model="formData.password" type="password" required />
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal" class="btn-cancel">
-              Отмена
-            </button>
-            <button type="submit" class="btn-submit">
-              {{ editingPerson ? 'Сохранить' : 'Добавить' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .personnel-container {
@@ -222,6 +258,13 @@ const deletePersonnel = async (id) => {
 }
 
 .form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.form-group select {
   width: 100%;
   padding: 10px;
   border: 1px solid #ddd;

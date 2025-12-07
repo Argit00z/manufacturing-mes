@@ -1,12 +1,142 @@
+<template>
+  <div class="tasks-container">
+    <div class="header">
+      <h2>Дашборд - Управление задачами</h2>
+      <button 
+        v-if="canEdit"
+        @click="showAddModal = true" 
+        class="btn-add"
+      >
+        + Создать задачу
+      </button>
+    </div>
+
+    <div v-if="tasksStore.loading" class="loading">
+      Загрузка...
+    </div>
+
+    <div v-else-if="tasksStore.error" class="error">
+      {{ tasksStore.error }}
+    </div>
+
+    <div v-else class="tasks-list">
+      <div
+        v-for="task in tasksStore.allTasks"
+        :key="task.id"
+        class="task-card"
+        :class="{ completed: task.status === 'completed' }"
+      >
+        <div class="task-header">
+          <h3>{{ task.title }}</h3>
+          <span class="status-badge" :class="task.status">
+            {{ getStatusText(task.status) }}
+          </span>
+        </div>
+        <p class="task-description">{{ task.description }}</p>
+        <div class="task-info">
+          <div class="info-item">
+            <strong>Исполнитель:</strong> {{ task.user?.name || 'Не назначен' }}
+          </div>
+          <div class="info-item" v-if="task.material">
+            <strong>Материал:</strong> {{ task.material.name }}
+          </div>
+          <div class="info-item">
+            <strong>Срок:</strong> {{ formatDate(task.deadline) }}
+          </div>
+        </div>
+        <div class="actions" v-if="canEdit">
+          <button @click="editTask(task)" class="btn-edit">
+            Редактировать
+          </button>
+          <button @click="deleteTask(task.id)" class="btn-delete">
+            Удалить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно -->
+    <div v-if="showAddModal || editingTask" class="modal" @click.self="closeModal">
+      <div class="modal-content">
+        <h3>{{ editingTask ? 'Редактировать' : 'Создать' }} задачу</h3>
+        <form @submit.prevent="handleSubmit">
+          <div class="form-group">
+            <label>Название</label>
+            <input v-model="formData.title" required />
+          </div>
+          <div class="form-group">
+            <label>Описание</label>
+            <textarea v-model="formData.description" rows="4" required></textarea>
+          </div>
+          <div class="form-group">
+            <label>Исполнитель</label>
+            <select v-model="formData.userId" required>
+              <option value="">Выберите исполнителя</option>
+              <option
+                v-for="person in personnelStore.allPersonnel"
+                :key="person.id"
+                :value="person.id"
+              >
+                {{ person.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Материал (опционально)</label>
+            <select v-model="formData.materialId">
+              <option value="">Без материала</option>
+              <option
+                v-for="material in materialsStore.allMaterials"
+                :key="material.id"
+                :value="material.id"
+              >
+                {{ material.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Срок выполнения</label>
+            <input v-model="formData.deadline" type="date" required />
+          </div>
+          <div class="form-group">
+            <label>Статус</label>
+            <select v-model="formData.status" required>
+              <option value="pending">В ожидании</option>
+              <option value="in_progress">В работе</option>
+              <option value="completed">Завершена</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="closeModal" class="btn-cancel">
+              Отмена
+            </button>
+            <button type="submit" class="btn-submit">
+              {{ editingTask ? 'Сохранить' : 'Создать' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useTasksStore } from '../stores/tasksStore';
 import { usePersonnelStore } from '../stores/personnelStore';
 import { useMaterialsStore } from '../stores/materialsStore';
+import { useAuthStore } from '../stores/authStore';
 
 const tasksStore = useTasksStore();
 const personnelStore = usePersonnelStore();
 const materialsStore = useMaterialsStore();
+const authStore = useAuthStore();
+
+// Проверка прав доступа
+const canEdit = computed(() => {
+  const userPermissions = authStore.user?.permissions || [];
+  return userPermissions.includes('dashboard.edit');
+});
 
 const showAddModal = ref(false);
 const editingTask = ref(null);
@@ -104,124 +234,6 @@ const deleteTask = async (id) => {
   }
 };
 </script>
-
-<template>
-  <div class="tasks-container">
-    <div class="header">
-      <h2>Задачи</h2>
-      <button @click="showAddModal = true" class="btn-add">
-        + Создать задачу
-      </button>
-    </div>
-
-    <div v-if="tasksStore.loading" class="loading">
-      Загрузка...
-    </div>
-
-    <div v-else-if="tasksStore.error" class="error">
-      {{ tasksStore.error }}
-    </div>
-
-    <div v-else class="tasks-list">
-      <div
-        v-for="task in tasksStore.allTasks"
-        :key="task.id"
-        class="task-card"
-        :class="{ completed: task.status === 'completed' }"
-      >
-        <div class="task-header">
-          <h3>{{ task.title }}</h3>
-          <span class="status-badge" :class="task.status">
-            {{ getStatusText(task.status) }}
-          </span>
-        </div>
-        <p class="task-description">{{ task.description }}</p>
-        <div class="task-info">
-          <div class="info-item">
-            <strong>Исполнитель:</strong> {{ task.user?.name || 'Не назначен' }}
-          </div>
-          <div class="info-item" v-if="task.material">
-            <strong>Материал:</strong> {{ task.material.name }}
-          </div>
-          <div class="info-item">
-            <strong>Срок:</strong> {{ formatDate(task.deadline) }}
-          </div>
-        </div>
-        <div class="actions">
-          <button @click="editTask(task)" class="btn-edit">
-            Редактировать
-          </button>
-          <button @click="deleteTask(task.id)" class="btn-delete">
-            Удалить
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Модальное окно -->
-    <div v-if="showAddModal || editingTask" class="modal" @click.self="closeModal">
-      <div class="modal-content">
-        <h3>{{ editingTask ? 'Редактировать' : 'Создать' }} задачу</h3>
-        <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>Название</label>
-            <input v-model="formData.title" required />
-          </div>
-          <div class="form-group">
-            <label>Описание</label>
-            <textarea v-model="formData.description" rows="4" required></textarea>
-          </div>
-          <div class="form-group">
-            <label>Исполнитель</label>
-            <select v-model="formData.userId" required>
-              <option value="">Выберите исполнителя</option>
-              <option
-                v-for="person in personnelStore.allPersonnel"
-                :key="person.id"
-                :value="person.id"
-              >
-                {{ person.name }}
-              </option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Материал (опционально)</label>
-            <select v-model="formData.materialId">
-              <option value="">Без материала</option>
-              <option
-                v-for="material in materialsStore.allMaterials"
-                :key="material.id"
-                :value="material.id"
-              >
-                {{ material.name }}
-              </option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Срок выполнения</label>
-            <input v-model="formData.deadline" type="date" required />
-          </div>
-          <div class="form-group">
-            <label>Статус</label>
-            <select v-model="formData.status" required>
-              <option value="pending">В ожидании</option>
-              <option value="in_progress">В работе</option>
-              <option value="completed">Завершена</option>
-            </select>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="closeModal" class="btn-cancel">
-              Отмена
-            </button>
-            <button type="submit" class="btn-submit">
-              {{ editingTask ? 'Сохранить' : 'Создать' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</template>
 
 <style scoped>
 .tasks-container {
